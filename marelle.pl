@@ -284,6 +284,11 @@ detect_platform :-
         Platform = unknown
     ),
     retractall(platform(_)),
+    assertz(platform(Platform));
+    sh_output('cmd.exe /C ver', OS),
+    writeln(OS),
+    Platform = win,
+    retractall(platform(_)),
     assertz(platform(Platform)).
 
 join(L, R) :- atomic_list_concat(L, R).
@@ -332,7 +337,8 @@ met(P, _) :- command_pkg(P, Cmd), which(Cmd).
 command_pkg(P, P) :- command_pkg(P).
 
 writeln_stderr(S) :-
-    open('/dev/stderr', write, Stream),
+   %  open('/dev/stderr', write, Stream),
+    open(user_error, write, Stream),
     write(Stream, S),
     write(Stream, '\n'),
     close(Stream).
@@ -350,7 +356,13 @@ join_if_list(Input, Output) :-
 %   Code is the exit code of the command.
 sh(Cmd0, Code) :-
     join_if_list(Cmd0, Cmd),
-    catch(shell(Cmd, Code), _, fail).
+    catch(os_sh(Cmd, Code), _, fail).
+
+% Special handling for Windows platforms.
+os_sh(Cmd, Code) :- platform(win),
+   join(['cmd.exe /C ', Cmd], WinCmd),
+   shell(WinCmd, Code);
+   shell(Cmd, Code).
 
 bash(Cmd0, Code) :- sh(Cmd0, Code).
 
